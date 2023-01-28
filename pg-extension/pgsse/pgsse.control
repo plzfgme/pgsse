@@ -1,0 +1,5 @@
+comment = 'pgsse:  Created by pgx'
+default_version = '@CARGO_VERSION@'
+module_pathname = '$libdir/pgsse'
+relocatable = false
+superuser = false
