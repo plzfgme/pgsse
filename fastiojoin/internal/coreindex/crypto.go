@@ -1,0 +1,133 @@
+package coreindex
+
+import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/hmac"
+	"crypto/sha256"
+	"hash"
+)
+
+type fPRF struct {
+	iv     []byte
+	block  cipher.Block
+	stream cipher.Stream
+}
+
+func newFPRF(key []byte, iv []byte) (*fPRF, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	stream := cipher.NewCTR(block, iv)
+
+	return &fPRF{
+		iv:     iv,
+		block:  block,
+		stream: stream,
+	}, nil
+}
+
+func (f *fPRF) Eval(input []byte) []byte {
+	dst := make([]byte, len(input))
+	f.stream.XORKeyStream(dst, input)
+	f.stream = cipher.NewCTR(f.block, f.iv)
+
+	return dst
+}
+
+type h1Hash struct {
+	h hash.Hash
+}
+
+func newH1Hash() *h1Hash {
+	return &h1Hash{
+		hmac.New(sha256.New, []byte("1")),
+	}
+}
+
+func (h1 *h1Hash) Eval(input []byte) ([]byte, error) {
+	_, err := h1.h.Write(input)
+	if err != nil {
+		return nil, err
+	}
+	result := h1.h.Sum(nil)
+	h1.h.Reset()
+
+	return result, nil
+}
+
+type h2Hash struct {
+	h1 hash.Hash
+	h2 hash.Hash
+	h3 hash.Hash
+	h4 hash.Hash
+	h5 hash.Hash
+}
+
+func newH2Hash() *h2Hash {
+	return &h2Hash{
+		h1: hmac.New(sha256.New, []byte("21")),
+		h2: hmac.New(sha256.New, []byte("22")),
+		h3: hmac.New(sha256.New, []byte("23")),
+		h4: hmac.New(sha256.New, []byte("24")),
+		h5: hmac.New(sha256.New, []byte("25")),
+	}
+}
+
+func (h2 *h2Hash) Eval(input []byte) ([]byte, error) {
+	results := make([][]byte, 5)
+	var err error
+	results[1], err = hashAndReset(h2.h1, input)
+	if err != nil {
+		return nil, err
+	}
+	results[2], err = hashAndReset(h2.h2, input)
+	if err != nil {
+		return nil, err
+	}
+	results[3], err = hashAndReset(h2.h3, input)
+	if err != nil {
+		return nil, err
+	}
+	results[4], err = hashAndReset(h2.h4, input)
+	if err != nil {
+		return nil, err
+	}
+	results[5], err = hashAndReset(h2.h5, input)
+	if err != nil {
+		return nil, err
+	}
+
+	return concatBytes(results), nil
+}
+
+func hashAndReset(h hash.Hash, input []byte) ([]byte, error) {
+	_, err := h.Write(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.Sum(nil), nil
+}
+
+type hHash struct {
+	h hash.Hash
+}
+
+func newHHash() *hHash {
+	return &hHash{
+		h: sha256.New(),
+	}
+}
+
+func (h *hHash) Eval(input []byte) ([]byte, error) {
+	_, err := h.h.Write(input)
+	if err != nil {
+		return nil, err
+	}
+	result := h.h.Sum(nil)
+	h.h.Reset()
+
+	return result, nil
+}
