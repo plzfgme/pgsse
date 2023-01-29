@@ -8,19 +8,16 @@ import (
 	"github.com/plzfgme/pgsse/storage"
 )
 
-// ClientOptions represents the options of Client.
 type ClientOptions struct {
 	key []byte
 }
 
-// NewClientOptions creates a new ClientOptions from a key.
 func NewClientOptions(key []byte) *ClientOptions {
 	return &ClientOptions{
 		key: key,
 	}
 }
 
-// Client represents a FASTIO client
 type Client struct {
 	f  *fPRF
 	h1 *h1Hash
@@ -28,7 +25,6 @@ type Client struct {
 	h  *hHash
 }
 
-// NewClient creates a new Client from options, returns ErrKeySize if the key size is wrong.
 func NewClient(opt *ClientOptions) (*Client, error) {
 	if len(opt.key) != KeySize {
 		return nil, ErrKeySize
