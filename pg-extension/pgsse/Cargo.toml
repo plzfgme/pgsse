@@ -17,6 +17,7 @@ pg_test = []
 
 [dependencies]
 hmac = "0.12.1"
+itertools = "0.10.5"
 pgx = "=0.6.1"
 sha2 = "0.10.6"
 
