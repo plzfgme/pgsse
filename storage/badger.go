@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"bytes"
+
 	"github.com/dgraph-io/badger/v3"
 )
 
@@ -26,12 +28,14 @@ func (s *BadgerStorage) Close() error {
 
 func (s *BadgerStorage) Begin(update bool) *BadgerTxn {
 	return &BadgerTxn{
-		txn: s.db.NewTransaction(update),
+		txn:    s.db.NewTransaction(update),
+		prefix: nil,
 	}
 }
 
 type BadgerTxn struct {
-	txn *badger.Txn
+	txn    *badger.Txn
+	prefix []byte
 }
 
 func (txn *BadgerTxn) Commit() error {
@@ -42,9 +46,13 @@ func (txn *BadgerTxn) Rollback() {
 	txn.txn.Discard()
 }
 
+func (txn *BadgerTxn) WithPrefix(prefix []byte) {
+	txn.prefix = prefix
+}
+
 // Get returns the corresponding value of the key. If the key not found, ErrKeyNotFound should be returned.
 func (txn *BadgerTxn) Get(key []byte) ([]byte, error) {
-	item, err := txn.txn.Get(key)
+	item, err := txn.txn.Get(concat(txn.prefix, key))
 	if err != nil {
 		return nil, err
 	}
@@ -57,10 +65,14 @@ func (txn *BadgerTxn) Get(key []byte) ([]byte, error) {
 
 // Set sets the corresponding value of the key.
 func (txn *BadgerTxn) Set(key []byte, val []byte) error {
-	return txn.txn.Set(key, val)
+	return txn.txn.Set(concat(txn.prefix, key), val)
 }
 
 // Delete deletes the corresponding value of the key.
 func (txn *BadgerTxn) Delete(key []byte) error {
-	return txn.txn.Delete(key)
+	return txn.txn.Delete(concat(txn.prefix, key))
+}
+
+func concat(prefix []byte, key []byte) []byte {
+	return bytes.Join([][]byte{prefix, key}, nil)
 }
