@@ -73,8 +73,13 @@ DECLARE
 
 BEGIN
 
-    CALL pgsse_fastio_update(prefix || '_a', a_token);
-    CALL pgsse_fastio_update(prefix || '_b', b_token);
+    IF length(a_token) <> 0 THEN
+        CALL pgsse_fastio_update(prefix || '_a', a_token);
+    END IF;
+
+    IF length(b_token) <> 0 THEN
+        CALL pgsse_fastio_update(prefix || '_b', b_token);
+    END IF;
 
     u = substring(token from 1 for 64);
     e = substring(token from 65 for 64);
