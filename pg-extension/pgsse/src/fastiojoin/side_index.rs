@@ -41,7 +41,13 @@ pub fn search_product(
         let ui = h1(&kw_i);
         let e = match te_get(prefix, &ui) {
             Some(v) => v,
-            None => break,
+            None => {
+                return TableIterator::new(
+                    a_ids
+                        .into_iter()
+                        .cartesian_product(b_ids.into_iter().collect::<Vec<i64>>()),
+                )
+            }
         };
         let (op, side, id) = parse_op_side_id(xor_bytes(e, h2(&kw_i)));
 
