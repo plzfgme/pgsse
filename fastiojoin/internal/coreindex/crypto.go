@@ -61,8 +61,6 @@ type h2Hash struct {
 	h1 hash.Hash
 	h2 hash.Hash
 	h3 hash.Hash
-	h4 hash.Hash
-	h5 hash.Hash
 }
 
 func newH2Hash() *h2Hash {
@@ -70,8 +68,6 @@ func newH2Hash() *h2Hash {
 		h1: hmac.New(sha256.New, []byte("21")),
 		h2: hmac.New(sha256.New, []byte("22")),
 		h3: hmac.New(sha256.New, []byte("23")),
-		h4: hmac.New(sha256.New, []byte("24")),
-		h5: hmac.New(sha256.New, []byte("25")),
 	}
 }
 
@@ -87,14 +83,6 @@ func (h2 *h2Hash) Eval(input []byte) ([]byte, error) {
 		return nil, err
 	}
 	results[3], err = hashAndReset(h2.h3, input)
-	if err != nil {
-		return nil, err
-	}
-	results[4], err = hashAndReset(h2.h4, input)
-	if err != nil {
-		return nil, err
-	}
-	results[5], err = hashAndReset(h2.h5, input)
 	if err != nil {
 		return nil, err
 	}

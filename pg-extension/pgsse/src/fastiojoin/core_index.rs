@@ -7,12 +7,12 @@ use super::{
     util::xor_bytes,
 };
 
-pub fn search(prefix: &str, token: &[u8]) -> HashMap<Vec<u8>, (Vec<u8>, Vec<u8>)> {
+pub fn search(prefix: &str, token: &[u8]) -> HashMap<Vec<u8>, Vec<u8>> {
     let (kw, c) = parse_search_token(token);
 
     let mut token_map = HashMap::new();
 
-    token_map.extend(tc_get(prefix));
+    token_map.extend(tc_get_all(prefix));
 
     let kw = match kw {
         Some(v) => v,
@@ -25,16 +25,16 @@ pub fn search(prefix: &str, token: &[u8]) -> HashMap<Vec<u8>, (Vec<u8>, Vec<u8>)
         let kw_i = concat_kw_i(kw, i);
         let ui = h1(&kw_i);
         let e = te_get(prefix, &ui).expect("index broken");
-        let (tw, a_token, b_token) = parse_tw_token(xor_bytes(e, h2_long(&kw_i)));
-        token_map2.insert(tw, (a_token, b_token));
+        let (tw, token) = parse_tw_token(xor_bytes(e, h2_long(&kw_i)));
+        token_map2.insert(tw, token);
 
         te_delete(prefix, &ui);
     }
 
     token_map.extend(token_map2.clone());
 
-    for (tw, (a_token, b_token)) in token_map2 {
-        tc_set(prefix, tw, a_token, b_token);
+    for (tw, token) in token_map2 {
+        tc_set(prefix, tw, token);
     }
 
     token_map
@@ -55,35 +55,28 @@ fn parse_search_token(token: &[u8]) -> (Option<&[u8]>, u64) {
 
 fn te_get(prefix: &str, u: &[u8]) -> Option<Vec<u8>> {
     Spi::get_one_with_args(
-        &format!("SELECT e FROM {}_ab_te WHERE u = $1", prefix),
+        &format!("SELECT e FROM {}_te WHERE u = $1", prefix),
         vec![(PgBuiltInOids::BYTEAOID.oid(), u.into_datum())],
     )
 }
 
 fn te_delete(prefix: &str, u: &[u8]) {
     Spi::run_with_args(
-        &format!("DELETE FROM {}_ab_te WHERE u = $1", prefix),
+        &format!("DELETE FROM {}_te WHERE u = $1", prefix),
         Some(vec![(PgBuiltInOids::BYTEAOID.oid(), u.into_datum())]),
     )
 }
 
-fn tc_get(prefix: &str) -> Vec<(Vec<u8>, (Vec<u8>, Vec<u8>))> {
+fn tc_get_all(prefix: &str) -> Vec<(Vec<u8>, Vec<u8>)> {
     Spi::connect(|client| {
-        let table = client.select(
-            &format!("SELECT tw, a_token, b_token FROM {}_ab_tc", prefix),
-            None,
-            None,
-        );
+        let table = client.select(&format!("SELECT tw, token FROM {}_tc", prefix), None, None);
         Ok(Some(
             table
                 .into_iter()
                 .map(|tuple| {
                     (
-                        tuple.by_ordinal(1).unwrap().value().unwrap(),
-                        (
-                            tuple.by_ordinal(2).unwrap().value().unwrap(),
-                            tuple.by_ordinal(2).unwrap().value().unwrap(),
-                        ),
+                        tuple.by_name("tw").unwrap().value().unwrap(),
+                        tuple.by_name("token").unwrap().value().unwrap(),
                     )
                 })
                 .collect(),
@@ -92,16 +85,15 @@ fn tc_get(prefix: &str) -> Vec<(Vec<u8>, (Vec<u8>, Vec<u8>))> {
     .unwrap()
 }
 
-fn tc_set(prefix: &str, tw: Vec<u8>, a_token: Vec<u8>, b_token: Vec<u8>) {
+fn tc_set(prefix: &str, tw: Vec<u8>, token: Vec<u8>) {
     Spi::run_with_args(
         &format!(
-            "INSERT INTO {}_ab_tc VALUES ($1, $2, $3) ON CONFLICT (tw) DO UPDATE SET a_token = $2, b_token = $3",
+            "INSERT INTO {}_tc VALUES ($1, $2) ON CONFLICT (tw) DO UPDATE SET token = $2",
             prefix
         ),
         Some(vec![
             (PgBuiltInOids::BYTEAOID.oid(), tw.into_datum()),
-            (PgBuiltInOids::BYTEAOID.oid(), a_token.into_datum()),
-            (PgBuiltInOids::BYTEAOID.oid(), b_token.into_datum()),
+            (PgBuiltInOids::BYTEAOID.oid(), token.into_datum()),
         ]),
     )
 }
@@ -110,10 +102,6 @@ fn concat_kw_i(kw: &[u8], i: u64) -> Vec<u8> {
     [kw, &i.to_be_bytes()].concat()
 }
 
-fn parse_tw_token(op_tw_token: Vec<u8>) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
-    (
-        op_tw_token[..32].into(),
-        op_tw_token[32..89].into(),
-        op_tw_token[89..146].into(),
-    )
+fn parse_tw_token(tw_token: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
+    (tw_token[..32].into(), tw_token[32..89].into())
 }

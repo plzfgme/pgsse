@@ -11,17 +11,13 @@ func concatBytes(s [][]byte) []byte {
 	return bytes.Join(s, nil)
 }
 
-func buildEPart1(tw []byte, atoken, btoken []byte) ([]byte, error) {
+func buildEPart1(tw []byte, token []byte) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	_, err := buf.Write(tw)
 	if err != nil {
 		return nil, err
 	}
-	_, err = buf.Write(atoken)
-	if err != nil {
-		return nil, err
-	}
-	_, err = buf.Write(btoken)
+	_, err = buf.Write(token)
 	if err != nil {
 		return nil, err
 	}

@@ -43,16 +43,8 @@ func NewClient(opt *ClientOptions) (*Client, error) {
 	}, nil
 }
 
-func (client *Client) GenInsertToken(rm storage.RetrieverMutator, w []byte, atoken, btoken []byte) ([]byte, error) {
-	return client.genUpdateToken(rm, w, atoken, btoken, true)
-}
-
-func (client *Client) GenDeleteToken(rm storage.RetrieverMutator, w []byte, atoken, btoken []byte) ([]byte, error) {
-	return client.genUpdateToken(rm, w, atoken, btoken, false)
-}
-
-func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, atoken, btoken []byte, add bool) ([]byte, error) {
-	st, c, err := sigmaGet(rm, w)
+func (client *Client) GenUpdateToken(rm storage.RetrieverMutator, w []byte, token []byte) ([]byte, error) {
+	st, c, err := sigmaGet(rm)
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			st = make([]byte, 16)
@@ -78,7 +70,7 @@ func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, atok
 	}
 	tw := client.f.Eval(hw)
 
-	ePart1, err := buildEPart1(tw, atoken, btoken)
+	ePart1, err := buildEPart1(tw, token)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +80,7 @@ func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, atok
 	}
 	e := xor160Bytes(ePart1, ePart2)
 
-	err = sigmaSet(rm, w, st, c+1)
+	err = sigmaSet(rm, st, c+1)
 	if err != nil {
 		return nil, err
 	}
@@ -98,8 +90,8 @@ func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, atok
 	return tkn, nil
 }
 
-func (client *Client) GenSearchToken(rm storage.RetrieverMutator, w []byte) ([]byte, error) {
-	st, c, err := sigmaGet(rm, w)
+func (client *Client) GenSearchToken(rm storage.RetrieverMutator) ([]byte, error) {
+	st, c, err := sigmaGet(rm)
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			return nil, nil
@@ -117,7 +109,7 @@ func (client *Client) GenSearchToken(rm storage.RetrieverMutator, w []byte) ([]b
 			return nil, err
 		}
 
-		err = sigmaSet(rm, w, st, 0)
+		err = sigmaSet(rm, st, 0)
 		if err != nil {
 			return nil, err
 		}
