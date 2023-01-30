@@ -23,6 +23,10 @@ $$
 CREATE OR REPLACE PROCEDURE pgsse_fastiorange_update(prefix text, token bytea[])
  LANGUAGE plpgsql
 AS $$
+DECLARE
+
+    fastio_token bytea;
+    
 BEGIN
 
     FOREACH fastio_token IN ARRAY token
