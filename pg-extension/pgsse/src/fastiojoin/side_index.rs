@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use itertools::Itertools;
 use pgx::{prelude::*, IntoDatum};
 
 use super::{
@@ -7,19 +8,32 @@ use super::{
     util::xor_bytes,
 };
 
-// modified version of fastio, old token will not cause panic.
-pub fn search(prefix: &str, token: &[u8]) -> SetOfIterator<'static, Vec<u8>> {
+pub fn search_product(
+    prefix: &str,
+    token: &[u8],
+) -> TableIterator<'static, (name!(a_id, i64), name!(b_id, i64))> {
     let (tw, kw, c) = parse_search_token(token);
 
-    let mut ids = HashSet::new();
+    let mut a_ids = HashSet::new();
+    let mut b_ids = HashSet::new();
 
-    if let Some(cached_ids) = tc_get(prefix, tw) {
-        ids.extend(cached_ids);
+    let (a_cached_ids, b_cached_ids) = tc_get(prefix, tw);
+    if let Some(ids) = a_cached_ids {
+        a_ids.extend(ids);
+    }
+    if let Some(ids) = b_cached_ids {
+        b_ids.extend(ids);
     }
 
     let kw = match kw {
         Some(v) => v,
-        None => return SetOfIterator::new(ids),
+        None => {
+            return TableIterator::new(
+                a_ids
+                    .into_iter()
+                    .cartesian_product(b_ids.into_iter().collect::<Vec<i64>>()),
+            )
+        }
     };
 
     for i in 1..=c {
@@ -29,23 +43,31 @@ pub fn search(prefix: &str, token: &[u8]) -> SetOfIterator<'static, Vec<u8>> {
             Some(v) => v,
             None => break,
         };
-        let (op, id) = parse_op_id(xor_bytes(e, h2(&kw_i)));
+        let (op, side, id) = parse_op_side_id(xor_bytes(e, h2(&kw_i)));
 
-        if op == 1 {
-            // op == "del"
-            ids.remove(&id);
-        } else {
-            ids.insert(id);
-        }
+        match side {
+            0 => match op {
+                0 => a_ids.insert(id),
+                1 => a_ids.remove(&id),
+                _ => panic!("malformed token: unknown op"),
+            },
+            1 => match op {
+                0 => b_ids.insert(id),
+                1 => b_ids.remove(&id),
+                _ => panic!("malformed token: unknown op"),
+            },
+            _ => panic!("malformed token: unknown side"),
+        };
 
         te_delete(prefix, &ui)
     }
 
-    let ids: Vec<Vec<u8>> = ids.into_iter().collect();
+    let a_ids: Vec<i64> = a_ids.into_iter().collect();
+    let b_ids: Vec<i64> = b_ids.into_iter().collect();
 
-    tc_set(prefix, tw, ids.clone());
+    tc_set(prefix, tw, a_ids.clone(), b_ids.clone());
 
-    SetOfIterator::new(ids)
+    TableIterator::new(a_ids.into_iter().cartesian_product(b_ids))
 }
 
 fn parse_search_token(token: &[u8]) -> (&[u8], Option<&[u8]>, u64) {
@@ -76,22 +98,23 @@ fn te_delete(prefix: &str, u: &[u8]) {
     )
 }
 
-fn tc_get(prefix: &str, tw: &[u8]) -> Option<Vec<Vec<u8>>> {
-    Spi::get_one_with_args(
-        &format!("SELECT ids FROM {}_tc WHERE tw = $1", prefix),
+fn tc_get(prefix: &str, tw: &[u8]) -> (Option<Vec<i64>>, Option<Vec<i64>>) {
+    Spi::get_two_with_args(
+        &format!("SELECT a_ids, b_ids FROM {}_tc WHERE tw = $1", prefix),
         vec![(PgBuiltInOids::BYTEAOID.oid(), tw.into_datum())],
     )
 }
 
-fn tc_set(prefix: &str, tw: &[u8], ids: Vec<Vec<u8>>) {
+fn tc_set(prefix: &str, tw: &[u8], a_ids: Vec<i64>, b_ids: Vec<i64>) {
     Spi::run_with_args(
         &format!(
-            "INSERT INTO {}_tc VALUES ($1, $2) ON CONFLICT (tw) DO UPDATE SET ids = $2",
+            "INSERT INTO {}_tc VALUES ($1, $2, $3) ON CONFLICT (tw) DO UPDATE SET a_ids = $2, b_ids = $3",
             prefix
         ),
         Some(vec![
             (PgBuiltInOids::BYTEAOID.oid(), tw.into_datum()),
-            (PgBuiltInOids::BYTEAARRAYOID.oid(), ids.into_datum()),
+            (PgBuiltInOids::INT8ARRAYOID.oid(), a_ids.into_datum()),
+            (PgBuiltInOids::INT8ARRAYOID.oid(), b_ids.into_datum()),
         ]),
     )
 }
@@ -100,8 +123,10 @@ fn concat_kw_i(kw: &[u8], i: u64) -> Vec<u8> {
     [kw, &i.to_be_bytes()].concat()
 }
 
-fn parse_op_id(mut op_id: Vec<u8>) -> (u8, Vec<u8>) {
-    let op = op_id.remove(0);
+fn parse_op_side_id(mut op_side_id: Vec<u8>) -> (u8, u8, i64) {
+    let op = op_side_id.remove(0);
+    let side = op_side_id.remove(0);
+    let id = i64::from_be_bytes(op_side_id[..8].try_into().unwrap());
 
-    (op, op_id)
+    (op, side, id)
 }
