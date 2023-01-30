@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/dgraph-io/badger/v3"
 )
@@ -54,10 +55,10 @@ func (txn *BadgerTxn) WithPrefix(prefix []byte) {
 func (txn *BadgerTxn) Get(key []byte) ([]byte, error) {
 	item, err := txn.txn.Get(concat(txn.prefix, key))
 	if err != nil {
+		if errors.Is(err, badger.ErrKeyNotFound) {
+			return nil, ErrKeyNotFound
+		}
 		return nil, err
-	}
-	if item == nil {
-		return nil, ErrKeyNotFound
 	}
 
 	return item.ValueCopy(nil)
