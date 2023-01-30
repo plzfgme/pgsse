@@ -43,15 +43,15 @@ func NewClient(opt *ClientOptions) (*Client, error) {
 	}, nil
 }
 
-func (client *Client) GenInsertToken(rm storage.RetrieverMutator, w []byte, id uint64) ([]byte, error) {
-	return client.genUpdateToken(rm, w, id, true)
+func (client *Client) GenInsertToken(rm storage.RetrieverMutator, side Side, w []byte, id uint64) ([]byte, error) {
+	return client.genUpdateToken(rm, side, w, id, true)
 }
 
-func (client *Client) GenDeleteToken(rm storage.RetrieverMutator, w []byte, id uint64) ([]byte, error) {
-	return client.genUpdateToken(rm, w, id, false)
+func (client *Client) GenDeleteToken(rm storage.RetrieverMutator, side Side, w []byte, id uint64) ([]byte, error) {
+	return client.genUpdateToken(rm, side, w, id, false)
 }
 
-func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, id uint64, add bool) ([]byte, error) {
+func (client *Client) genUpdateToken(rm storage.RetrieverMutator, side Side, w []byte, id uint64, add bool) ([]byte, error) {
 	st, c, err := sigmaGet(rm, w)
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
@@ -77,7 +77,7 @@ func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, id u
 	} else {
 		flag = byte(flagDelete)
 	}
-	ePart1 := buildEPart1(flag, id)
+	ePart1 := buildEPart1(flag, side, id)
 	ePart2, err := client.h2.Eval(input)
 	if err != nil {
 		return nil, err

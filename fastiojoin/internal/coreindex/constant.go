@@ -3,7 +3,7 @@ package coreindex
 const KeySize = 32
 
 const (
-	eSize  = 160
+	eSize  = 96
 	stSize = 16
 	kwSize = stSize
 )
