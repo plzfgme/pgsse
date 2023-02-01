@@ -23,3 +23,9 @@ fn pgsse_fastiojoin_search(
 
     TableIterator::new(result.into_iter())
 }
+
+extension_sql_file!(
+    "../sql/fastiojoin.sql",
+    name = "fastiojoin",
+    requires = ["fastio"]
+);
