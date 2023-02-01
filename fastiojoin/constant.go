@@ -5,4 +5,4 @@ import (
 	"github.com/plzfgme/pgsse/fastiojoin/internal/sideindex"
 )
 
-const KeySize = coreindex.KeySize + 2*sideindex.KeySize
+const KeySize = coreindex.KeySize + sideindex.KeySize
