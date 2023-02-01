@@ -1,4 +1,4 @@
-package sideindex
+package fastio64
 
 import "errors"
 

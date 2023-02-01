@@ -1,6 +1,9 @@
-package sideindex
+package fastio64
 
-const KeySize = 32
+const (
+	KeySize = 32
+	IDSize  = 63
+)
 
 const (
 	eSize  = 32
@@ -11,11 +14,4 @@ const (
 const (
 	flagAdd    byte = 0
 	flagDelete byte = 1
-)
-
-type Side byte
-
-const (
-	SideA Side = 0
-	SideB Side = 1
 )

@@ -1,8 +1,10 @@
 package fastiojoin
 
 import (
-	"github.com/plzfgme/pgsse/fastiojoin/internal/coreindex"
-	"github.com/plzfgme/pgsse/fastiojoin/internal/sideindex"
+	"bytes"
+	"encoding/binary"
+
+	"github.com/plzfgme/pgsse/internal/fastio64"
 	"github.com/plzfgme/pgsse/storage"
 )
 
@@ -17,8 +19,10 @@ func NewClientOptions(key []byte) *ClientOptions {
 }
 
 type Client struct {
-	core *coreindex.Client
-	side *sideindex.Client
+	f *fPRF
+	h *hHash
+
+	c *fastio64.Client
 }
 
 func NewClient(opt *ClientOptions) (*Client, error) {
@@ -26,75 +30,92 @@ func NewClient(opt *ClientOptions) (*Client, error) {
 		return nil, ErrKeySize
 	}
 
-	core, err := coreindex.NewClient(coreindex.NewClientOptions(opt.key[:coreindex.KeySize]))
+	f, _ := newFPRF(opt.key[:16], opt.key[16:32])
+	h := newHHash()
+
+	c, err := fastio64.NewClient(fastio64.NewClientOptions(opt.key[32:]))
 	if err != nil {
 		return nil, err
 	}
-	side, err := sideindex.NewClient(sideindex.NewClientOptions(opt.key[coreindex.KeySize : coreindex.KeySize+sideindex.KeySize]))
+
+	return &Client{f: f, h: h, c: c}, nil
+}
+
+func (c *Client) GenInsertAToken(rm storage.RetrieverMutator, w []byte, id int64) ([]byte, error) {
+	return c.genInsertToken(rm, sideA, w, id)
+}
+
+func (c *Client) GenInsertBToken(rm storage.RetrieverMutator, w []byte, id int64) ([]byte, error) {
+	return c.genInsertToken(rm, sideB, w, id)
+}
+
+func (c *Client) genInsertToken(rm storage.RetrieverMutator, side byte, w []byte, id int64) ([]byte, error) {
+	tw, err := c.buildTW(w)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{
-		core: core,
-		side: side,
-	}, nil
-}
-
-func (c *Client) GenInsertAToken(rm storage.RetrieverMutator, w []byte, id uint64) ([]byte, []byte, error) {
-	return c.genInsertToken(rm, sideindex.SideA, w, id)
-}
-
-func (c *Client) GenInsertBToken(rm storage.RetrieverMutator, w []byte, id uint64) ([]byte, []byte, error) {
-	return c.genInsertToken(rm, sideindex.SideB, w, id)
-}
-
-func (c *Client) genInsertToken(rm storage.RetrieverMutator, side sideindex.Side, w []byte, id uint64) ([]byte, []byte, error) {
-	sideTkn, err := c.side.GenInsertToken(rm, side, w, id)
+	fastioID, err := buildFASTIOID(tw, side, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	searchTkn, err := c.side.GenSearchToken(rm, w)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	coreTkn, err := c.core.GenUpdateToken(rm, w, searchTkn)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return coreTkn, sideTkn, nil
+	return c.c.GenInsertToken(rm, uniqueFASTIOW, fastioID)
 }
 
-func (c *Client) GenDeleteAToken(rm storage.RetrieverMutator, w []byte, id uint64) ([]byte, []byte, error) {
-	return c.genDeleteToken(rm, sideindex.SideA, w, id)
+func (c *Client) GenDeleteAToken(rm storage.RetrieverMutator, w []byte, id int64) ([]byte, error) {
+	return c.genDeleteToken(rm, sideA, w, id)
 }
 
-func (c *Client) GenDeleteBToken(rm storage.RetrieverMutator, w []byte, id uint64) ([]byte, []byte, error) {
-	return c.genInsertToken(rm, sideindex.SideB, w, id)
+func (c *Client) GenDeleteBToken(rm storage.RetrieverMutator, w []byte, id int64) ([]byte, error) {
+	return c.genDeleteToken(rm, sideB, w, id)
 }
 
-func (c *Client) genDeleteToken(rm storage.RetrieverMutator, side sideindex.Side, w []byte, id uint64) ([]byte, []byte, error) {
-	sideTkn, err := c.side.GenDeleteToken(rm, side, w, id)
+func (c *Client) genDeleteToken(rm storage.RetrieverMutator, side byte, w []byte, id int64) ([]byte, error) {
+	tw, err := c.buildTW(w)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	searchTkn, err := c.side.GenSearchToken(rm, w)
+	fastioID, err := buildFASTIOID(tw, side, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	coreTkn, err := c.core.GenUpdateToken(rm, w, searchTkn)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return coreTkn, sideTkn, nil
+	return c.c.GenDeleteToken(rm, uniqueFASTIOW, fastioID)
 }
 
 func (c *Client) GenSearchToken(rm storage.RetrieverMutator) ([]byte, error) {
-	return c.core.GenSearchToken(rm)
+	return c.c.GenSearchToken(rm, uniqueFASTIOW)
+}
+
+func (c *Client) buildTW(w []byte) ([]byte, error) {
+	hw, err := c.h.Eval(w)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.f.Eval(hw), nil
+}
+
+func buildFASTIOID(tw []byte, side byte, id int64) ([]byte, error) {
+	buf := &bytes.Buffer{}
+	_, err := buf.Write(tw)
+	if err != nil {
+		return nil, err
+	}
+	err = buf.WriteByte(side)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(buf, binary.BigEndian, id)
+	if err != nil {
+		return nil, err
+	}
+	_, err = buf.Write(make([]byte, fastio64.IDSize-buf.Len()))
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), err
 }

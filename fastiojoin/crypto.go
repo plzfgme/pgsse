@@ -1,9 +1,8 @@
-package sideindex
+package fastiojoin
 
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/hmac"
 	"crypto/sha256"
 	"hash"
 )
@@ -34,48 +33,6 @@ func (f *fPRF) Eval(input []byte) []byte {
 	f.stream = cipher.NewCTR(f.block, f.iv)
 
 	return dst
-}
-
-type h1Hash struct {
-	h hash.Hash
-}
-
-func newH1Hash() *h1Hash {
-	return &h1Hash{
-		hmac.New(sha256.New, []byte("1")),
-	}
-}
-
-func (h1 *h1Hash) Eval(input []byte) ([]byte, error) {
-	_, err := h1.h.Write(input)
-	if err != nil {
-		return nil, err
-	}
-	result := h1.h.Sum(nil)
-	h1.h.Reset()
-
-	return result, nil
-}
-
-type h2Hash struct {
-	h hash.Hash
-}
-
-func newH2Hash() *h2Hash {
-	return &h2Hash{
-		hmac.New(sha256.New, []byte("2")),
-	}
-}
-
-func (h2 *h2Hash) Eval(input []byte) ([]byte, error) {
-	_, err := h2.h.Write(input)
-	if err != nil {
-		return nil, err
-	}
-	result := h2.h.Sum(nil)
-	h2.h.Reset()
-
-	return result, nil
 }
 
 type hHash struct {

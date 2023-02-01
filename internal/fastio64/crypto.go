@@ -1,4 +1,4 @@
-package coreindex
+package fastio64
 
 import (
 	"crypto/aes"
@@ -60,43 +60,31 @@ func (h1 *h1Hash) Eval(input []byte) ([]byte, error) {
 type h2Hash struct {
 	h1 hash.Hash
 	h2 hash.Hash
-	h3 hash.Hash
 }
 
 func newH2Hash() *h2Hash {
 	return &h2Hash{
-		h1: hmac.New(sha256.New, []byte("21")),
-		h2: hmac.New(sha256.New, []byte("22")),
-		h3: hmac.New(sha256.New, []byte("23")),
+		hmac.New(sha256.New, []byte("21")),
+		hmac.New(sha256.New, []byte("22")),
 	}
 }
 
 func (h2 *h2Hash) Eval(input []byte) ([]byte, error) {
-	results := make([][]byte, 5)
-	var err error
-	results[1], err = hashAndReset(h2.h1, input)
+	_, err := h2.h1.Write(input)
 	if err != nil {
 		return nil, err
 	}
-	results[2], err = hashAndReset(h2.h2, input)
-	if err != nil {
-		return nil, err
-	}
-	results[3], err = hashAndReset(h2.h3, input)
-	if err != nil {
-		return nil, err
-	}
+	result := h2.h1.Sum(nil)
+	h2.h1.Reset()
 
-	return concatBytes(results), nil
-}
-
-func hashAndReset(h hash.Hash, input []byte) ([]byte, error) {
-	_, err := h.Write(input)
+	_, err = h2.h2.Write(input)
 	if err != nil {
 		return nil, err
 	}
+	result = h2.h2.Sum(result)
+	h2.h2.Reset()
 
-	return h.Sum(nil), nil
+	return result, nil
 }
 
 type hHash struct {
