@@ -6,7 +6,7 @@ const (
 )
 
 const (
-	eSize  = 32
+	eSize  = 64
 	stSize = 16
 	kwSize = stSize
 )

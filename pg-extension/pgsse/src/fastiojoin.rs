@@ -16,7 +16,14 @@ fn pgsse_fastiojoin_search(
         let (tw, side, id) = parse_tw_side_id(b);
         match id_map.get_mut(&tw) {
             None => {
-                id_map.insert(tw, (Vec::new(), Vec::new()));
+                let mut a_ids = Vec::new();
+                let mut b_ids = Vec::new();
+                match side {
+                    0 => a_ids.push(id),
+                    1 => b_ids.push(id),
+                    _ => panic!("unknown side"),
+                }
+                id_map.insert(tw, (a_ids, b_ids));
             }
             Some((a_ids, b_ids)) => match side {
                 0 => a_ids.push(id),

@@ -9,23 +9,23 @@ END;
 $$
 ;
 
-CREATE OR REPLACE PROCEDURE pgsse_fastio64_drop(prefix text)
+CREATE OR REPLACE PROCEDURE pgsse_fastiojoin_drop(prefix text)
  LANGUAGE plpgsql
 AS $$
 BEGIN
 
-    CALL pgsse_fastio_drop(prefix);
+    CALL pgsse_fastio64_drop(prefix);
 
 END;
 $$
 ;
 
-CREATE OR REPLACE PROCEDURE pgsse_fastio64_update(prefix text, token bytea)
+CREATE OR REPLACE PROCEDURE pgsse_fastiojoin_update(prefix text, token bytea)
  LANGUAGE plpgsql
 AS $$
 BEGIN
 
-    CALL pgsse_fastio_update(prefix, token); 
+    CALL pgsse_fastio64_update(prefix, token); 
 
 END;
 $$

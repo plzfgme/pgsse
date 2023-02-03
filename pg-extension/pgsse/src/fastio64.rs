@@ -23,7 +23,10 @@ pub(crate) fn search(prefix: &str, token: &[u8]) -> SetOfIterator<'static, Vec<u
     for i in 1..=c {
         let kw_i = concat_kw_i(kw, i);
         let ui = h1(&kw_i);
-        let e = te_get(prefix, &ui).expect("index broken");
+        let e = match te_get(prefix, &ui) {
+            Some(v) => v,
+            None => break,
+        };
         let (op, id) = parse_op_id(xor_bytes(e, h2(&kw_i)));
 
         if op == 1 {
