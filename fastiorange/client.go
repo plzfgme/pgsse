@@ -30,7 +30,7 @@ func NewClient(opt *ClientOptions) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) GenInsertToken(rm storage.RetrieverMutator, v uint64, id uint64) ([][]byte, error) {
+func (c *Client) GenInsertToken(rm storage.RetrieverMutator, v uint64, id int64) ([][]byte, error) {
 	ws, err := InsertKeywords(v)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (c *Client) GenInsertToken(rm storage.RetrieverMutator, v uint64, id uint64
 	return tkns, nil
 }
 
-func (c *Client) GenDeleteToken(rm storage.RetrieverMutator, v uint64, id uint64) ([][]byte, error) {
+func (c *Client) GenDeleteToken(rm storage.RetrieverMutator, v uint64, id int64) ([][]byte, error) {
 	ws, err := InsertKeywords(v)
 	if err != nil {
 		return nil, err

@@ -43,15 +43,15 @@ func NewClient(opt *ClientOptions) (*Client, error) {
 	}, nil
 }
 
-func (client *Client) GenInsertToken(rm storage.RetrieverMutator, w []byte, id uint64) ([]byte, error) {
+func (client *Client) GenInsertToken(rm storage.RetrieverMutator, w []byte, id int64) ([]byte, error) {
 	return client.genUpdateToken(rm, w, id, true)
 }
 
-func (client *Client) GenDeleteToken(rm storage.RetrieverMutator, w []byte, id uint64) ([]byte, error) {
+func (client *Client) GenDeleteToken(rm storage.RetrieverMutator, w []byte, id int64) ([]byte, error) {
 	return client.genUpdateToken(rm, w, id, false)
 }
 
-func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, id uint64, add bool) ([]byte, error) {
+func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, id int64, add bool) ([]byte, error) {
 	st, c, err := sigmaGet(rm, w)
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
@@ -66,7 +66,7 @@ func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, id u
 		}
 	}
 
-	input := binary.BigEndian.AppendUint64(st, c+1)
+	input := binary.BigEndian.AppendUint64(st, uint64(c+1))
 	u, err := client.h1.Eval(input)
 	if err != nil {
 		return nil, err

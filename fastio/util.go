@@ -11,10 +11,10 @@ func concatBytes(s [][]byte) []byte {
 	return bytes.Join(s, nil)
 }
 
-func buildEPart1(flag byte, id uint64) []byte {
+func buildEPart1(flag byte, id int64) []byte {
 	b := make([]byte, eSize)
 	b[0] = flag
-	binary.BigEndian.PutUint64(b[1:9], id)
+	binary.BigEndian.PutUint64(b[1:9], uint64(id))
 
 	return b
 }
