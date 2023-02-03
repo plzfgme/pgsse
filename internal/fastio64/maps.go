@@ -1,4 +1,4 @@
-package coreindex
+package fastio64
 
 import (
 	"bytes"
@@ -7,10 +7,8 @@ import (
 	"github.com/plzfgme/pgsse/storage"
 )
 
-var sigmaUniqueKey = []byte("unique")
-
-func sigmaGet(r storage.Retriever) ([]byte, uint64, error) {
-	b, err := r.Get(sigmaKey(sigmaUniqueKey))
+func sigmaGet(r storage.Retriever, w []byte) ([]byte, uint64, error) {
+	b, err := r.Get(sigmaKey(w))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -21,7 +19,7 @@ func sigmaGet(r storage.Retriever) ([]byte, uint64, error) {
 	return st, c, nil
 }
 
-func sigmaSet(m storage.RetrieverMutator, st []byte, c uint64) error {
+func sigmaSet(m storage.RetrieverMutator, w []byte, st []byte, c uint64) error {
 	buf := &bytes.Buffer{}
 	_, err := buf.Write(st)
 	if err != nil {
@@ -32,7 +30,7 @@ func sigmaSet(m storage.RetrieverMutator, st []byte, c uint64) error {
 		return err
 	}
 
-	err = m.Set(sigmaKey(sigmaUniqueKey), buf.Bytes())
+	err = m.Set(sigmaKey(w), buf.Bytes())
 	if err != nil {
 		return err
 	}

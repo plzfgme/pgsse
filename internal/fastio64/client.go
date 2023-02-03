@@ -1,4 +1,4 @@
-package coreindex
+package fastio64
 
 import (
 	"crypto/rand"
@@ -43,8 +43,16 @@ func NewClient(opt *ClientOptions) (*Client, error) {
 	}, nil
 }
 
-func (client *Client) GenUpdateToken(rm storage.RetrieverMutator, w []byte, token []byte) ([]byte, error) {
-	st, c, err := sigmaGet(rm)
+func (client *Client) GenInsertToken(rm storage.RetrieverMutator, w []byte, id []byte) ([]byte, error) {
+	return client.genUpdateToken(rm, w, id, true)
+}
+
+func (client *Client) GenDeleteToken(rm storage.RetrieverMutator, w []byte, id []byte) ([]byte, error) {
+	return client.genUpdateToken(rm, w, id, false)
+}
+
+func (client *Client) genUpdateToken(rm storage.RetrieverMutator, w []byte, id []byte, add bool) ([]byte, error) {
+	st, c, err := sigmaGet(rm, w)
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			st = make([]byte, 16)
@@ -63,24 +71,20 @@ func (client *Client) GenUpdateToken(rm storage.RetrieverMutator, w []byte, toke
 	if err != nil {
 		return nil, err
 	}
-
-	hw, err := client.h.Eval(w)
-	if err != nil {
-		return nil, err
+	var flag byte
+	if add {
+		flag = flagAdd
+	} else {
+		flag = byte(flagDelete)
 	}
-	tw := client.f.Eval(hw)
-
-	ePart1, err := buildEPart1(tw, token)
-	if err != nil {
-		return nil, err
-	}
+	ePart1 := buildEPart1(flag, id)
 	ePart2, err := client.h2.Eval(input)
 	if err != nil {
 		return nil, err
 	}
-	e := xor160Bytes(ePart1, ePart2)
+	e := xor64Bytes(ePart1, ePart2)
 
-	err = sigmaSet(rm, st, c+1)
+	err = sigmaSet(rm, w, st, c+1)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +94,8 @@ func (client *Client) GenUpdateToken(rm storage.RetrieverMutator, w []byte, toke
 	return tkn, nil
 }
 
-func (client *Client) GenSearchToken(rm storage.RetrieverMutator) ([]byte, error) {
-	st, c, err := sigmaGet(rm)
+func (client *Client) GenSearchToken(rm storage.RetrieverMutator, w []byte) ([]byte, error) {
+	st, c, err := sigmaGet(rm, w)
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			return nil, nil
@@ -99,6 +103,12 @@ func (client *Client) GenSearchToken(rm storage.RetrieverMutator) ([]byte, error
 			return nil, err
 		}
 	}
+
+	hw, err := client.h.Eval(w)
+	if err != nil {
+		return nil, err
+	}
+	tw := client.f.Eval(hw)
 
 	var kw []byte
 	if c != 0 {
@@ -109,7 +119,7 @@ func (client *Client) GenSearchToken(rm storage.RetrieverMutator) ([]byte, error
 			return nil, err
 		}
 
-		err = sigmaSet(rm, st, 0)
+		err = sigmaSet(rm, w, st, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +127,7 @@ func (client *Client) GenSearchToken(rm storage.RetrieverMutator) ([]byte, error
 		kw = nil
 	}
 
-	tkn, err := buildSearchToken(kw, c)
+	tkn, err := buildSearchToken(tw, kw, c)
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,5 @@
 mod fastio;
+mod fastio64;
 mod fastiojoin;
 mod fastiorange;
 
