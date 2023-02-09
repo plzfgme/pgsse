@@ -65,6 +65,7 @@ fn te_get(prefix: &str, u: &[u8]) -> Option<Vec<u8>> {
         &format!("SELECT e FROM {}_te WHERE u = $1", prefix),
         vec![(PgBuiltInOids::BYTEAOID.oid(), u.into_datum())],
     )
+    .unwrap()
 }
 
 fn te_delete(prefix: &str, u: &[u8]) {
@@ -72,6 +73,7 @@ fn te_delete(prefix: &str, u: &[u8]) {
         &format!("DELETE FROM {}_te WHERE u = $1", prefix),
         Some(vec![(PgBuiltInOids::BYTEAOID.oid(), u.into_datum())]),
     )
+    .unwrap();
 }
 
 fn tc_get(prefix: &str, tw: &[u8]) -> Option<Vec<Vec<u8>>> {
@@ -79,6 +81,7 @@ fn tc_get(prefix: &str, tw: &[u8]) -> Option<Vec<Vec<u8>>> {
         &format!("SELECT ids FROM {}_tc WHERE tw = $1", prefix),
         vec![(PgBuiltInOids::BYTEAOID.oid(), tw.into_datum())],
     )
+    .unwrap()
 }
 
 fn tc_set(prefix: &str, tw: &[u8], ids: Vec<Vec<u8>>) {
@@ -92,6 +95,7 @@ fn tc_set(prefix: &str, tw: &[u8], ids: Vec<Vec<u8>>) {
             (PgBuiltInOids::BYTEAARRAYOID.oid(), ids.into_datum()),
         ]),
     )
+    .unwrap();
 }
 
 fn concat_kw_i(kw: &[u8], i: u64) -> Vec<u8> {
